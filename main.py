@@ -1,30 +1,79 @@
-from modelos.generador import Generador
+"""Prueba simple del esqueleto del sistema de potencia.
+"""
+from modelos.barra import Barra
 from modelos.carga import Carga
+from modelos.generador import Generador
+from modelos.linea_transmision import LineaTransmision
 from gestores.sistema_potencia import SistemaPotencia
-
-def main():
-    # Iniciar el gestor
-    red_nacional = SistemaPotencia()
-
-    # Crear elementos respetando la herencia y paso de parámetros, puse esos valores
-    # arbitrarios para la demostración, pero podrían ser cualquier cosa (fran)
-    gen_1 = Generador(id_elemento=1, nombre="Central Colbún", potencia_maxima=500.0, costo_operativo=25.5)
-    carga_1 = Carga(id_elemento=2, nombre="Consumo Santiago", demanda_activa=350.0)
-
-    # Agregar a la topología
-    red_nacional.agregar_generador(gen_1)
-    red_nacional.agregar_carga(carga_1)
-
-    print(f"[{gen_1.nombre}] Límite máximo operativo: {gen_1.potencia_maxima} MW")
-
-    # Demostración del encapsulamiento y validación
-    try:
-        gen_1.potencia_despachada = 300.0 # Funciona
-        print(f"[{gen_1.nombre}] Despacho exitoso: {gen_1.potencia_despachada} MW")
-        
-        gen_1.potencia_despachada = 600.0 # Esto activará el error controlado
-    except ValueError as e:
-        print(e)
-
-if __name__ == "__main__":
-    main()
+ 
+# 1. Crear el sistema y las barras
+sistema = SistemaPotencia()
+b1 = Barra("B1", "Quillota")
+b2 = Barra("B2", "Santiago")
+sistema.agregar_barra(b1)
+sistema.agregar_barra(b2)
+ 
+# 2. Crear y agregar generador, carga y línea
+g1 = Generador("G1", "Central Norte", 200, 35, b1)
+c1 = Carga("C1", "Demanda Santiago", 150, b2)
+l1 = LineaTransmision("L1", "Linea 1-2", b1, b2, 0.1)
+sistema.agregar_generador(g1)
+sistema.agregar_carga(c1)
+sistema.agregar_linea(l1)
+ 
+# 3. Mostrar la red y los totales
+print("--- Red ---")
+print(sistema.resumen())
+print("\nDemanda total:", sistema.demanda_total(), "MW")
+print("Capacidad total:", sistema.capacidad_total(), "MW")
+ 
+# 4. Usar los setters (despachar potencia)
+print("\n--- Despacho ---")
+g1.potencia_despachada = 150
+print(g1)
+ 
+# 5. Pruebas de validación (cada una debe dar un error)
+print("\n--- Validaciones ---")
+ 
+try:
+    g1.potencia_despachada = 500
+except ValueError as e:
+    print("Despachar de más:", e)
+ 
+try:
+    c1.demanda_activa = -10
+except ValueError as e:
+    print("Demanda negativa:", e)
+ 
+try:
+    LineaTransmision("L2", "Linea mala", b1, b1, 0.1)
+except ValueError as e:
+    print("Origen igual a destino:", e)
+ 
+try:
+    LineaTransmision("L3", "Linea mala", b1, b2, 0)
+except ValueError as e:
+    print("Reactancia cero:", e)
+ 
+try:
+    sistema.agregar_generador(Generador("G1", "Repetido", 50, 10, b1))
+except ValueError as e:
+    print("ID repetido:", e)
+ 
+try:
+    sistema.agregar_carga(Carga("C2", "Huérfana", 20, Barra("B9", "Nueva")))
+except ValueError as e:
+    print("Barra no registrada:", e)
+ 
+try:
+    g1.id_elemento = "OTRO"
+except AttributeError as e:
+    print("Cambiar el ID:", e)
+ 
+# 6. Métodos que se implementan en los siguientes hitos
+print("\n--- Pendientes ---")
+try:
+    sistema.despacho_economico()
+except NotImplementedError as e:
+    print("despacho_economico:", e)
+ 
